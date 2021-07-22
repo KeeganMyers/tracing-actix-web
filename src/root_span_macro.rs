@@ -58,10 +58,16 @@
 macro_rules! root_span {
     // Vanilla root span, with no additional fields
     ($request:ident) => {
-        root_span!($request,)
+        root_span!("HTTP request",$request,$crate::root_span_macro::private::tracing::Level::INFO,)
+    };
+    ($request:ident,$level:expr) => {
+        root_span!("HTTP request",$request, $level,)
+    };
+    ($name:expr,$request:ident,$level:expr) => {
+        root_span!($name,$request, $level,)
     };
     // One or more additional fields, comma separated
-    ($request:ident, $($field:tt)*) => {
+    ($name:expr,$request:ident,$level:expr, $($field:tt)*) => {
         {
             let user_agent = $request
                 .headers()
@@ -75,8 +81,10 @@ macro_rules! root_span {
             let http_method = $crate::root_span_macro::private::http_method_str($request.method());
             let connection_info = $request.connection_info();
             let request_id = $crate::root_span_macro::private::get_request_id($request);
-            let span = $crate::root_span_macro::private::tracing::info_span!(
-                "HTTP request",
+
+            let span = $crate::root_span_macro::private::tracing::span!(
+                $level,
+                $name,
                 http.method = %http_method,
                 http.route = %http_route,
                 http.flavor = %$crate::root_span_macro::private::http_flavor($request.version()),
@@ -105,6 +113,9 @@ macro_rules! root_span {
 
             #[cfg(feature = "opentelemetry_0_15")]
             $crate::root_span_macro::private::set_otel_parent_0_15(&$request, &span);
+
+            #[cfg(feature = "tracing-elastic-apm")]
+            $crate::root_span_macro::private::set_elastic_apm_parent(&$request, &span);
 
             span
         }
@@ -140,6 +151,12 @@ pub mod private {
     #[doc(hidden)]
     pub fn set_otel_parent_0_15(req: &ServiceRequest, span: &tracing::Span) {
         crate::otel_0_15::set_otel_parent(req, span);
+    }
+
+    #[cfg(feature = "tracing-elastic-apm")]
+    #[doc(hidden)]
+    pub fn set_elastic_apm_parent(req: &ServiceRequest, span: &tracing::Span) {
+        crate::elastic_apm::set_elastic_apm_parent(req, span);
     }
 
     #[doc(hidden)]

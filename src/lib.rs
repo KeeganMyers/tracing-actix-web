@@ -252,3 +252,6 @@ mod otel_0_14;
 
 #[cfg(feature = "opentelemetry_0_15")]
 mod otel_0_15;
+
+#[cfg(feature = "tracing-elastic-apm")]
+mod elastic_apm;
